@@ -1,0 +1,77 @@
+{
+  "id": "modern",
+  "name": "Modern Commerce Template",
+  "version": 1,
+
+  "meta": {
+    "description": "Clean modern storefront template with hero, featured products & CTA sections.",
+    "demoUrl": "https://your-demo-modern.vercel.app"
+  },
+
+  "tree": {
+    "component": "Page",
+    "props": {
+      "theme": "light",
+      "layout": "centered"
+    },
+    "children": [
+      {
+        "component": "Hero",
+        "props": {
+          "title": "Welcome to Modern Commerce",
+          "subtitle": "A fast, clean shopping experience",
+          "backgroundImage": "/demo/hero-modern.jpg",
+          "ctaLabel": "Shop Now",
+          "ctaLink": "/products"
+        }
+      },
+      {
+        "component": "Section",
+        "props": {
+          "padding": "xl",
+          "title": "Featured Products"
+        },
+        "children": [
+          {
+            "component": "ProductGrid",
+            "props": {
+              "query": {
+                "type": "featured",
+                "limit": 8
+              },
+              "cardVariant": "modern"
+            }
+          }
+        ]
+      },
+      {
+        "component": "Section",
+        "props": {
+          "padding": "lg",
+          "background": "gray"
+        },
+        "children": [
+          {
+            "component": "Callout",
+            "props": {
+              "title": "Enjoy free shipping on all orders",
+              "body": "No minimum purchase required.",
+              "ctaLabel": "Learn More",
+              "ctaLink": "/shipping"
+            }
+          }
+        ]
+      },
+      {
+        "component": "Footer",
+        "props": {
+          "theme": "dark",
+          "links": [
+            { "label": "Privacy Policy", "href": "/privacy" },
+            { "label": "Terms of Service", "href": "/terms" }
+          ]
+        }
+      }
+    ]
+  }
+}
