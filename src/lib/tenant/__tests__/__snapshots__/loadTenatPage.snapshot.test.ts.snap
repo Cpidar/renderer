@@ -1,0 +1,33 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`loadTenantPage snapshot matches snapshot for a typical tenant/page/product/template flow 1`] = `
+{
+  "cacheHit": false,
+  "merged": {
+    "merged": true,
+  },
+  "page": {
+    "puckData": {
+      "content": "json",
+    },
+    "slug": "/products/lamp",
+    "templateVersion": "tmpl1",
+  },
+  "pageHash": "d316494794da0ac3d7c7062c7d0c6cb56b0150318ceb1bf367a23863b20a44e1",
+  "product": {
+    "id": "prod1",
+    "templateVersion": "tmpl1",
+  },
+  "templateSnapshot": {
+    "layout": "grid",
+    "version": "v1",
+  },
+  "tenant": {
+    "id": "tenant123",
+    "templateOverrides": {
+      "color": "blue",
+    },
+    "templateVersion": "tmpl1",
+  },
+}
+`;
