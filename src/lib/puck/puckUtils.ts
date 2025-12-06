@@ -1,12 +1,23 @@
-export function collectTypesFromPuck(puckJson: any, set = new Set<string>()) {
-  if (!puckJson) return set
-  const comps = puckJson.components || puckJson.blocks || []
-  for (const c of comps) {
-    if (c?.type) set.add(c.type)
-    if (c?.children) {
-      if (Array.isArray(c.children)) c.children.forEach((ch: any) => collectTypesFromPuck(ch, set))
-      else collectTypesFromPuck(c.children, set)
+import { type Data } from '@measured/puck'; // Import official Puck Data type
+
+export function collectTypesFromPuck(data: Data, set = new Set<string>()): Set<string> {
+  if (!data) return set;
+
+  set.add('Page');
+
+  const collect = (content: Data['content']) => {
+    for (const c of content || []) {
+      if (c?.type) set.add(c.type);
+      for (const key in c?.props || {}) {
+        const val = c.props[key];
+        if (Array.isArray(val) && val.length > 0 && val[0]?.type) {
+          collect(val);
+        }
+      }
     }
-  }
-  return set
+  };
+
+  collect(data.content);
+
+  return set;
 }

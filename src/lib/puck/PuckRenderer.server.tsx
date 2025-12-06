@@ -82,7 +82,7 @@ function shouldCacheHtml(type: string): boolean {
   return ['ProductGrid', 'HeavyComponent'].includes(type);
 }
 
-async function renderPuckToReactNode(
+export async function renderPuckToReactNode(
   data: PuckData,
   tenantSlug: string,
   pageHash: string | null
