@@ -1,0 +1,55 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`PuckRenderer wraps result in data-puck-root 1`] = `
+<div>
+  <div
+    data-puck-root="true"
+  >
+    <div
+      data-testid="mock"
+    />
+  </div>
+</div>
+`;
+
+exports[`renderPuckToReactNodes renders children recursively 1`] = `
+<div>
+  <div>
+    <div
+      data-testid="mock"
+    >
+      <div
+        data-testid="mock"
+      >
+        SANITIZED:&lt;i&gt;child&lt;/i&gt;
+      </div>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`renderPuckToReactNodes renders simple nodes without cache 1`] = `
+<div>
+  <div>
+    <div
+      data-testid="mock"
+    >
+      SANITIZED:&lt;b&gt;test&lt;/b&gt;
+    </div>
+  </div>
+</div>
+`;
+
+exports[`renderPuckToReactNodes uses cached HTML if available 1`] = `
+<div>
+  <div
+    data-testid="mock2"
+  >
+    <div>
+      <p>
+        cached
+      </p>
+    </div>
+  </div>
+</div>
+`;

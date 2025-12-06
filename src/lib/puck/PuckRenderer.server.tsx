@@ -6,7 +6,7 @@ import sanitizeHtml from 'sanitize-html';
 
 import { blockKey, getRedisJSON } from '../cache';
 import { requireComponent } from './componentRegistry.server';
-
+import type { ComponentData, Data as PuckData } from '@measured/puck'
 /**
  * This renderer expects a normalized `puckJson`:
  * {
@@ -30,17 +30,17 @@ import { requireComponent } from './componentRegistry.server';
  * Input: puckJson { components: [...] }
  */
 export async function renderPuckToReactNodes(
-  puckJson: any,
+  puckJson: PuckData,
   tenantSlug: string,
   pageHash: string | null
 ): Promise<React.ReactNode[]> {
-  const blocks = puckJson?.components || puckJson?.blocks || [];
+  const blocks = puckJson?.content || [];
 
-  async function renderNode(node: any, idx = 0): Promise<React.ReactNode> {
+  async function renderNode(node: ComponentData, idx = 0): Promise<React.ReactNode> {
     if (!node) return null;
 
     if (pageHash) {
-      const cacheKey = blockKey(tenantSlug, pageHash, node.id || node.type);
+      const cacheKey = blockKey(tenantSlug, pageHash, node.type || node.props.id);
       const cached = await getRedisJSON(cacheKey);
       if (cached && cached.html) {
         // Return a wrapper that injects HTML (server safe)
@@ -58,12 +58,12 @@ export async function renderPuckToReactNodes(
 
     if (props?.html) props.html = sanitizeHtml(props.html);
 
-    const children = node.children || [];
+    const children = props.items || [];
     const renderedChildren = await Promise.all(
       children.map((c: any, i: number) => renderNode(c, i))
     );
 
-    const element = React.createElement(Comp, { key: node.id || idx, ...props }, renderedChildren);
+    const element = React.createElement(Comp, { key: node.props.id || idx, ...props }, renderedChildren);
 
     // Optionally serialize element to HTML and store (requires renderToStaticMarkup)
     // Tradeoff: storing HTML reduces server CPU but prevents partial streaming and RSC boundaries. Use for heavy repeated blocks (product grids).
@@ -75,7 +75,7 @@ export async function renderPuckToReactNodes(
     return element;
   }
 
-  const rendered = await Promise.all(blocks.map((b: any, i: number) => renderNode(b, i)));
+  const rendered = await Promise.all(blocks.map((b, i: number) => renderNode(b, i)));
   return rendered;
 }
 
