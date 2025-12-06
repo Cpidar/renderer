@@ -1,96 +1,139 @@
-// src/lib/puck/renderer.tsx
-import React from 'react';
+// src/lib/puck/PuckRenderer.server.tsx
+import React, { Suspense } from 'react';
+import { type Data as PuckData } from '@measured/puck'; // Import official Puck Data type
 
-// import { renderToStaticMarkup } from 'react-dom/server';
 import sanitizeHtml from 'sanitize-html';
 
-import { blockKey, getRedisJSON } from '../cache';
+import { blockKey, getRedisJSON, setRedisJSON } from '../cache';
 import { requireComponent } from './componentRegistry.server';
+import { renderToStaticMarkup } from 'react-dom/server'; // For HTML caching
 
 /**
- * This renderer expects a normalized `puckJson`:
+ * This renderer expects a standard Puck `data` object in the new slots model:
  * {
- *   components: [{ id, type, props, children }, ... ],
- *   tokens: { ... }
+ *   content: [{ type, props: { id, ..., items: [{type, props}, ...] } }, ... ],
+ *   root: { props: { ... } }
  * }
  *
- * It:
- * - preloads needed components
- * - for each block: check block-level cache -> if found stream it (return string wrapped)
- * - otherwise import component and render it (server-component),
- *   sanitize outputs for any dangerouslySetInnerHTML blocks
+ * No 'zones' object; nesting is inline in props (e.g., props.children or props.items).
  *
- * NOTE: For pure React Server Component rendering, you typically return elements.
- * For block-level caching as 'HTML snippets' you'd need to render to string via renderToString
- * which can increase CPU. Use selectively for static blocks only.
+ * Optimizations:
+ * - Recursive async rendering with Suspense for streaming.
+ * - Detects slot fields automatically (arrays of {type, props}).
+ * - Selective HTML caching for expensive/static components.
+ * - Sanitizes HTML props inline.
  */
 
-/**
- * Server-side Puck renderer using requireComponent.
- * Input: puckJson { components: [...] }
- */
-export async function renderPuckToReactNodes(
-  puckJson: any,
+async function renderNode(
+  node: PuckData['content'][number],
   tenantSlug: string,
-  pageHash: string | null
-): Promise<React.ReactNode[]> {
-  const blocks = puckJson?.components || puckJson?.blocks || [];
+  pageHash: string | null,
+  metadata: any
+): Promise<React.ReactNode> {
+  const { type, props: rawProps } = node;
+  const nodeId = rawProps?.id || `${type}-${Math.random().toString(36).slice(2)}`; // Fallback ID if missing
 
-  async function renderNode(node: any, idx = 0): Promise<React.ReactNode> {
-    if (!node) return null;
+  let cachedHtml: string | null = null;
+  let cacheKey: string | null = null;
 
-    if (pageHash) {
-      const cacheKey = blockKey(tenantSlug, pageHash, node.id || node.type);
-      const cached = await getRedisJSON(cacheKey);
-      if (cached && cached.html) {
-        // Return a wrapper that injects HTML (server safe)
-        return (
-          <div
-            key={cacheKey}
-            dangerouslySetInnerHTML={{ __html: cached.html }}
-          />
-        );
-      }
+  if (pageHash && shouldCacheHtml(type)) {
+    cacheKey = blockKey(tenantSlug, pageHash, nodeId);
+    const cached = await getRedisJSON(cacheKey);
+    if (cached?.html) {
+      cachedHtml = cached.html;
     }
-
-    const Comp = await requireComponent(node.type);
-    const props = { ...(node.props || {}) };
-
-    if (props?.html) props.html = sanitizeHtml(props.html);
-
-    const children = node.children || [];
-    const renderedChildren = await Promise.all(
-      children.map((c: any, i: number) => renderNode(c, i))
-    );
-
-    const element = React.createElement(Comp, { key: node.id || idx, ...props }, renderedChildren);
-
-    // Optionally serialize element to HTML and store (requires renderToStaticMarkup)
-    // Tradeoff: storing HTML reduces server CPU but prevents partial streaming and RSC boundaries. Use for heavy repeated blocks (product grids).
-
-    // if (cacheKey) {
-    //   const html = renderToStaticMarkup(element);
-    //   await setBlockCache(cacheKey, { html }, 60); // ttl
-    // }
-    return element;
   }
 
-  const rendered = await Promise.all(blocks.map((b: any, i: number) => renderNode(b, i)));
-  return rendered;
+  if (cachedHtml) {
+    return <div key={nodeId} dangerouslySetInnerHTML={{ __html: cachedHtml }} />;
+  }
+
+  const Comp = await requireComponent(type);
+
+  // Prepare props: recurse on slot fields (arrays of {type, props})
+  const props = { ...rawProps };
+  for (const key in props) {
+    const val = props[key];
+    if (Array.isArray(val) && val.length > 0 && val[0]?.type && val[0]?.props) {
+      props[key] = await Promise.all(
+        val.map(async (child: PuckData['content'][number]) => 
+          <Suspense key={child.props?.id || key} fallback={<div>Loading...</div>}>
+            {await renderNode(child, tenantSlug, pageHash, metadata)}
+          </Suspense>
+        )
+      );
+    }
+  }
+
+  if (props?.html) props.html = sanitizeHtml(props.html);
+
+  const element = React.createElement(Comp, { key: nodeId, ...props });
+
+  if (cacheKey) {
+    const html = renderToStaticMarkup(element);
+    await setRedisJSON(cacheKey, { html }, 3600); // 1 hour TTL
+  }
+
+  return element;
+}
+
+// Helper to determine cacheable components
+function shouldCacheHtml(type: string): boolean {
+  return ['ProductGrid', 'HeavyComponent'].includes(type);
+}
+
+async function renderPuckToReactNode(
+  data: PuckData,
+  tenantSlug: string,
+  pageHash: string | null
+): Promise<React.ReactNode> {
+  const metadata = { tenantSlug, pageHash };
+
+  const rootPropsRaw = data.root?.props || data.root || {};
+  const rootProps = { ...rootPropsRaw };
+
+  // Recurse on root slots if any
+  // for (const key in rootProps) {
+  //   const val = rootProps[key];
+  //   if (Array.isArray(val) && val.length > 0 && val[0]?.type && val[0]?.props) {
+  //     rootProps[key] = await Promise.all(
+  //       val.map(async (child: PuckData['content'][number]) => 
+  //         <Suspense key={child.props?.id || key} fallback={<div>Loading...</div>}>
+  //           {await renderNode(child, tenantSlug, pageHash, metadata)}
+  //         </Suspense>
+  //       )
+  //     );
+  //   }
+  // }
+
+  // if (rootProps?.html) rootProps.html = sanitizeHtml(rootProps.html);
+
+  const PageComp = await requireComponent('Page');
+
+  const content = data.content || [];
+  const children = await Promise.all(
+    content.map(async(node: PuckData['content'][number], idx: number) => 
+      <Suspense key={node.props?.id || idx} fallback={<div>Loading...</div>}>
+        {await renderNode(node, tenantSlug, pageHash, metadata)}
+      </Suspense>
+    )
+  );
+
+  return React.createElement(PageComp, rootProps, children);
 }
 
 // Server component wrapper
 export default async function PuckRenderer({
   puckJson,
   tenantSlug,
-  pageHash
+  pageHash,
 }: {
-  puckJson: any;
+  puckJson: PuckData;
   tenantSlug: string;
   pageHash: string | null;
 }) {
-  const nodes = await renderPuckToReactNodes(puckJson, tenantSlug, pageHash);
-  return <div data-puck-root>{nodes}</div>;
+  const node = await renderPuckToReactNode(puckJson, tenantSlug, pageHash);
+  return <div data-puck-root>{node}</div>;
 }
 
-// TODO: enhance by adding streaming via renderToPipeableStream and partial hydration boundaries ("use client").
+// TODO: If slot field names vary, consider loading minimal config metadata for slot keys per component to avoid assumption-based detection.

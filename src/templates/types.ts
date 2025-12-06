@@ -1,12 +1,9 @@
-export interface PuckNode {
-  component: string;
-  props?: Record<string, any>;
-  children?: PuckNode[];
-}
+import { Data } from "@measured/puck";
 
-export interface TemplateSnapshot {
-  id: string;
-  name: string;
-  tree: PuckNode;
-  meta?: Record<string, any>;
+export type TemplateSnapshot = Data & { 
+    id: string;
+    name: string;                            // template name, e.g. "modern"
+    version: string; 
+    updatedAt: string;
+    meta?: Record<string, any>;
 }

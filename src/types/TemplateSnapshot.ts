@@ -18,3 +18,4 @@ export interface CompiledSnapshot {
         slug: string;
     }>;
 }
+

@@ -1,55 +1,66 @@
+import { TemplateSnapshot } from '@/templates/types';
 import deepmerge from 'deepmerge'
-import crypto from 'crypto'
 
-/**
- * mergeEngine responsibilities:
- * - normalize template snapshot + page puckData + tenant tokens
- * - compute templateVersion and page fingerprint
- * - return merged object, plus metadata { templateVersion, pageHash }
- */
-
-// Normalizer: ensures stable keys / defaults
-function normalizeTemplate(template: any) {
-  // keep only required fields for rendering: tokens, layout, blocks defaults
+// Optimized normalizer: minimal processing, assumes new slots model
+function normalizeTemplate(template: TemplateSnapshot): TemplateSnapshot {
   return {
-    templateName: template.templateName || 'unnamed',
-    version: template.version || '0.0.0',
-    tokens: template.tokens || {},
-    layout: template.layout || {},
-    defaults: template.defaults || {},
-    snapshotMeta: template.snapshotMeta || {}
-  }
+    ...template,
+    content: template.content || [],
+    root: template.root || { title: '' },
+  };
 }
 
-// custom array merge: if objects have id, merge by id, else replace with src
+// Apply defaults only if provided; recursive for nested
+function applyDefaults(data: TemplateSnapshot, defaults: Record<string, any> = {}) {
+  if (Object.keys(defaults).length === 0) return;
+
+  const apply = (props: any) => {
+    for (const key in props) {
+      const val = props[key];
+      if (Array.isArray(val) && val.length > 0 && val[0]?.type && val[0]?.props) {
+        val.forEach((item: TemplateSnapshot['content'][number]) => {
+          const def = defaults[item.type];
+          if (def) item.props = deepmerge(def, item.props || {});
+          apply(item.props); // Recurse nested
+        });
+      }
+    }
+  };
+
+  data.content.forEach(item => {
+    const def = defaults[item.type];
+    if (def) item.props = deepmerge(def, item.props || {});
+    apply(item.props);
+  });
+
+  apply(data.root.props || {});
+}
+
+// Custom array merge: optimized for ID-based, recursive for nested slots
 function arrayMerge(dest: any[], src: any[]) {
-  if (!src || src.length === 0) return dest;
-  if (!dest) return src;
-  if (src[0] && src[0].id) {
-    const map: Record<string, any> = {};
-    dest.forEach(d => { if (d?.id) map[d.id] = d; });
-    src.forEach(s => { if (s?.id) map[s.id] = deepmerge(map[s.id] ?? {}, s); });
-    return Object.values(map);
+  if (!src.length) return dest || [];
+  if (!dest?.length) return src;
+  if (!src[0]?.id) return src;
+
+  const map = new Map(dest.map(d => [d.id, d]));
+  for (const s of src) {
+    if (s.id) {
+      const existing = map.get(s.id) || {};
+      map.set(s.id, deepmerge(existing, s, { arrayMerge }));
+    }
   }
-  return src;
+  return Array.from(map.values());
 }
 
-/**
- * Merge template snapshot and puck page. Returns merged object.
- * - baseTemplate: snapshot from Payload in format of puck editor data payload
- * - pageOverrides: puckData (which contains components array, props overrides)
- * - tenantOverrides: tenant theme tokens (optional - override template.tokens)
- 
- *  Notes on override model:
+export function mergeTemplateWithPage(baseTemplate: any, tenantOverrides: any, pageOverrides: any): TemplateSnapshot {
+  const normalized = normalizeTemplate(baseTemplate);
 
- * - Tenant overrides intended to change theme tokens, default props, or swap components
- * - Page overrides only change page-level blocks and props
- * - Restrict tenantOverrides via Payload admin permissions (only admin role allowed)
- */
+  applyDefaults(normalized, baseTemplate || {});
 
+  let processedTenantOverrides = tenantOverrides || {};
+  // if (processedTenantOverrides && !processedTenantOverrides.root && !processedTenantOverrides.content) {
+  //   processedTenantOverrides = { root: { props: processedTenantOverrides } };
+  // }
 
-export function mergeTemplateWithPage(baseTemplate: any, tenantOverrides: any, pageOverrides: any) {
-  const normalizedTemplate = normalizeTemplate(baseTemplate || {});
-  const merged = deepmerge.all([normalizedTemplate, tenantOverrides || {}, pageOverrides || {}], { arrayMerge });
-  return merged;
+  return deepmerge.all([normalized, processedTenantOverrides, pageOverrides || {}], { arrayMerge }) as TemplateSnapshot;
 }
