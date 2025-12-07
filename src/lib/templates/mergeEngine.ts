@@ -1,12 +1,16 @@
 import { TemplateSnapshot } from '@/templates/types';
+import { randomUUID } from 'crypto';
 import deepmerge from 'deepmerge'
 
 // Optimized normalizer: minimal processing, assumes new slots model
-function normalizeTemplate(template: TemplateSnapshot): TemplateSnapshot {
+function normalizeTemplate(template: any): TemplateSnapshot {
   return {
-    ...template,
+    id: template.id || 'tem123',
+    name: template.name || '',
+    version: template.version || '0.0',
+    updatedAt: template.updatedAt || (new Date()).toString(),
     content: template.content || [],
-    root: template.root || { title: '' },
+    root: template.root || { props: template.tokens || {} }, // Fold tokens into props, no top-level tokens    // tokens: template.tokens
   };
 }
 
@@ -20,8 +24,8 @@ function applyDefaults(data: TemplateSnapshot, defaults: Record<string, any> = {
       if (Array.isArray(val) && val.length > 0 && val[0]?.type && val[0]?.props) {
         val.forEach((item: TemplateSnapshot['content'][number]) => {
           const def = defaults[item.type];
-          if (def) item.props = deepmerge(def, item.props || {});
-          apply(item.props); // Recurse nested
+          if (def) item.props = deepmerge(def, item.props || {}); // Defaults first, props override
+          apply(item.props);
         });
       }
     }
@@ -55,12 +59,14 @@ function arrayMerge(dest: any[], src: any[]) {
 export function mergeTemplateWithPage(baseTemplate: any, tenantOverrides: any, pageOverrides: any): TemplateSnapshot {
   const normalized = normalizeTemplate(baseTemplate);
 
-  applyDefaults(normalized, baseTemplate || {});
-
   let processedTenantOverrides = tenantOverrides || {};
-  // if (processedTenantOverrides && !processedTenantOverrides.root && !processedTenantOverrides.content) {
-  //   processedTenantOverrides = { root: { props: processedTenantOverrides } };
-  // }
+  if (processedTenantOverrides && !processedTenantOverrides.root && !processedTenantOverrides.content) {
+    processedTenantOverrides = { root: { props: processedTenantOverrides } };
+  }
 
-  return deepmerge.all([normalized, processedTenantOverrides, pageOverrides || {}], { arrayMerge }) as TemplateSnapshot;
+  let merged = deepmerge.all([normalized, processedTenantOverrides, pageOverrides || {}], { arrayMerge }) as TemplateSnapshot;
+
+  applyDefaults(merged, baseTemplate.defaults || {});
+
+  return merged;
 }

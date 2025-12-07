@@ -1,0 +1,108 @@
+{
+    "content": [
+        {
+            "type": "Hero",
+            "props": {
+                "id": "hero-1",
+                "title": "Custom Welcome",
+                "subtitle": "Discover amazing products",
+                "backgroundImage": "https://example.com/hero-bg.jpg",
+                "buttonText": "Shop Now",
+                "buttonLink": "/products",
+                "align": "center",
+                "height": "500px"
+            }
+        },
+        {
+            "type": "Section",
+            "props": {
+                "id": "section-1",
+                "title": "New Featured",
+                "items": [
+                    {
+                        "type": "ProductGrid",
+                        "props": {
+                            "id": "product-grid-1",
+                            "products": [
+                                {
+                                    "id": "prod1",
+                                    "name": "Product 1",
+                                    "price": 29.99,
+                                    "image": "https://example.com/prod1.jpg"
+                                },
+                                {
+                                    "id": "prod2",
+                                    "name": "Product 2",
+                                    "price": 39.99,
+                                    "image": "https://example.com/prod2.jpg"
+                                },
+                                {
+                                    "id": "prod3",
+                                    "name": "Product 3",
+                                    "price": 49.99,
+                                    "image": "https://example.com/prod3.jpg"
+                                }
+                            ],
+                            "columns": 3,
+                            "gap": "20px"
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "type": "Callout",
+            "props": {
+                "id": "callout-1",
+                "text": "Sign up for our newsletter and get 10% off!",
+                "buttonText": "Subscribe",
+                "buttonLink": "/subscribe"
+            }
+        },
+        {
+            "type": "Section",
+            "props": {
+                "id": "section-2",
+                "title": "About Us",
+                "content": "We are a leading e-commerce platform offering high-quality products."
+            }
+        },
+        {
+            "type": "Footer",
+            "props": {
+                "id": "footer-1",
+                "links": [
+                    {
+                        "text": "Home",
+                        "url": "/"
+                    },
+                    {
+                        "text": "Products",
+                        "url": "/products"
+                    },
+                    {
+                        "text": "About",
+                        "url": "/about"
+                    },
+                    {
+                        "text": "Contact",
+                        "url": "/contact"
+                    }
+                ],
+                "copyright": "© 2025 Our Store. All rights reserved.",
+                "backgroundColor": "#f8f9fa"
+            }
+        }
+    ],
+    "root": {
+        "props": {
+            "title": "Home Page",
+            "metaDescription": "Welcome to our store",
+            "theme": {
+                "primaryColor": "#ff0000",
+                "secondaryColor": "#6c757d",
+                "fontFamily": "Arial, sans-serif"
+            }
+        }
+    }
+}

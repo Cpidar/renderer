@@ -1,0 +1,18 @@
+{
+    "content": [
+        {
+            "type": "Hero",
+            "props": {
+                "id": "hero-1",
+                "title": "Custom Welcome"
+            }
+        },
+        {
+            "type": "Section",
+            "props": {
+                "id": "section-1",
+                "title": "New Featured"
+            }
+        }
+    ]
+}

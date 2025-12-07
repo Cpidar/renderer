@@ -43,6 +43,10 @@ import { preloadComponents } from '../../puck/componentRegistry.server';
 import { getRedisJSON, setRedisJSON } from '../../cache';
 
 describe('loadTenantPage', () => {
+  afterEach(() => {
+    jest.resetAllMocks(); // Reset mocks after each test to avoid state bleed
+  });
+
   it('should return nulls if tenant not found', async () => {
     (fetchTenantById as any).mockResolvedValue(null);
     const result = await loadTenantPage('slug', '/');

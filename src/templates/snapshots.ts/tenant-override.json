@@ -1,0 +1,9 @@
+{
+    "root": {
+        "props": {
+            "theme": {
+                "primaryColor": "#ff0000"
+            }
+        }
+    }
+}
